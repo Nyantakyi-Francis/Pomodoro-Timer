@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Pomodoro Timer</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent-work: #ef4444;
+      --accent-short: #10b981;
+      --accent-long: #3b82f6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --current-accent: var(--accent-work);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background-color: var(--card-bg);
+      width: 100%;
+      max-width: 480px;
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* Mode Navigation */
+    .modes {
+      display: flex;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      padding: 6px;
+      margin-bottom: 28px;
+      gap: 4px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 10px 0;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .mode-btn.active {
+      background-color: var(--current-accent);
+      color: #fff;
+    }
+
+    /* Timer Display with SVG Ring */
+    .timer-container {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      margin: 0 auto 28px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .progress-ring {
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+
+    .progress-ring__circle-bg {
+      stroke: rgba(255, 255, 255, 0.05);
+    }
+
+    .progress-ring__circle {
+      stroke: var(--current-accent);
+      stroke-dasharray: 753.98; /* 2 * PI * 120 */
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 0.5s ease-in-out, stroke 0.3s ease;
+    }
+
+    .time-display {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #time {
+      font-size: 4rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+
+    #label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: -4px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    /* Primary Controls */
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .btn {
+      background: #334155;
+      color: var(--text-main);
+      border: none;
+      padding: 12px 28px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+
+    .btn:hover {
+      background: #475569;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: var(--current-accent);
+      color: #fff;
+      padding: 12px 36px;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      background: var(--current-accent);
+    }
+
+    /* Settings Panel */
+    .settings {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .setting-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .setting-item label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .setting-item input {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: var(--text-main);
+      padding: 8px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .setting-item input:focus {
+      outline: 2px solid var(--current-accent);
+    }
+
+
+    /* Mobile / responsive improvements */
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      min-height: 100dvh;
+      padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      overflow-x: hidden;
+    }
+
+    button, input {
+      touch-action: manipulation;
+    }
+
+    .progress-ring {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        align-items: flex-start;
+      }
+
+      .container {
+        max-width: 100%;
+        border-radius: 18px;
+        padding: 22px 16px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 1.2rem;
+        margin-bottom: 16px;
+      }
+
+      .modes {
+        margin-bottom: 20px;
+        gap: 3px;
+        padding: 4px;
+      }
+
+      .mode-btn {
+        min-height: 44px;
+        padding: 8px 6px;
+        font-size: 0.82rem;
+        line-height: 1.15;
+      }
+
+      .timer-container {
+        width: min(72vw, 260px);
+        height: min(72vw, 260px);
+        margin-bottom: 22px;
+      }
+
+      #time {
+        font-size: clamp(2.8rem, 15vw, 4rem);
+      }
+
+      #label {
+        font-size: 0.78rem;
+      }
+
+      .controls {
+        gap: 10px;
+        margin-bottom: 22px;
+      }
+
+      .btn, .btn-primary {
+        flex: 1;
+        min-height: 48px;
+        padding: 12px 14px;
+        font-size: 1rem;
+      }
+
+      .settings {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .setting-item {
+        display: grid;
+        grid-template-columns: 1fr 92px;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+      }
+
+      .setting-item input {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px;
+      }
+    }
+
+    @media (max-width: 350px) {
+      .container {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .mode-btn {
+        font-size: 0.74rem;
+      }
+
+      .controls {
+        flex-direction: column;
+      }
+
+      .timer-container {
+        width: min(76vw, 235px);
+        height: min(76vw, 235px);
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Pomodoro</h1>
+
+    <!-- Mode Selector -->
+    <div class="modes">
+      <button class="mode-btn active" onclick="switchMode('work')">Work</button>
+      <button class="mode-btn" onclick="switchMode('shortBreak')">Short Break</button>
+      <button class="mode-btn" onclick="switchMode('longBreak')">Long Break</button>
+    </div>
+
+    <!-- Timer Ring Display -->
+    <div class="timer-container">
+      <svg class="progress-ring" width="260" height="260">
+        <circle class="progress-ring__circle-bg" stroke-width="12" fill="transparent" r="120" cx="130" cy="130"/>
+        <circle id="progress" class="progress-ring__circle" stroke-width="12" stroke-linecap="round" fill="transparent" r="120" cx="130" cy="130"/>
+      </svg>
+      <div class="time-display">
+        <span id="time">25:00</span>
+        <span id="label">Focus</span>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button id="start-btn" class="btn btn-primary" onclick="toggleTimer()">Start</button>
+      <button class="btn" onclick="resetTimer()">Reset</button>
+    </div>
+
+    <!-- Custom Intervals Configuration -->
+    <div class="settings">
+      <div class="setting-item">
+        <label for="work-duration">Work (m)</label>
+        <input type="number" id="work-duration" value="25" min="1" max="120" onchange="updateCustomDurations()">
+      </div>
+      <div class="setting-item">
+        <label for="short-duration">Short (m)</label>
+        <input type="number" id="short-duration" value="5" min="1" max="60" onchange="updateCustomDurations()">
+      </div>
+      <div class="setting-item">
+        <label for="long-duration">Long (m)</label>
+        <input type="number" id="long-duration" value="15" min="1" max="60" onchange="updateCustomDurations()">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    let durations = {
+      work: 25 * 60,
+      shortBreak: 5 * 60,
+      longBreak: 15 * 60
+    };
+
+    let currentMode = 'work'; // 'work', 'shortBreak', 'longBreak'
+    let timeLeft = durations[currentMode];
+    let totalTime = timeLeft;
+    let timerId = null;
+    let isRunning = false;
+
+    // SVG Circle setup
+    const circle = document.getElementById('progress');
+    const radius = circle.r.baseVal.value;
+    const circumference = 2 * Math.PI * radius;
+    circle.style.strokeDasharray = `${circumference} ${circumference}`;
+
+    // DOM Elements
+    const timeDisplay = document.getElementById('time');
+    const labelDisplay = document.getElementById('label');
+    const startBtn = document.getElementById('start-btn');
+    const modeBtns = document.querySelectorAll('.mode-btn');
+
+    const modeAccents = {
+      work: '#ef4444',
+      shortBreak: '#10b981',
+      longBreak: '#3b82f6'
+    };
+
+    // Update progress ring offset
+    function setProgress(percent) {
+      const offset = circumference - (percent / 100) * circumference;
+      circle.style.strokeDashoffset = offset;
+    }
+
+    // Format seconds to MM:SS
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = (seconds % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    // Update screen display
+    function updateDisplay() {
+      timeDisplay.textContent = formatTime(timeLeft);
+      document.title = `${formatTime(timeLeft)} - Pomodoro`;
+      const percentage = (timeLeft / totalTime) * 100;
+      setProgress(percentage);
+    }
+
+    // Mode Switching
+    function switchMode(mode) {
+      pauseTimer();
+      currentMode = mode;
+      
+      // Update active button styling & CSS variables
+      modeBtns.forEach((btn, idx) => {
+        btn.classList.toggle('active', ['work', 'shortBreak', 'longBreak'][idx] === mode);
+      });
+      document.documentElement.style.setProperty('--current-accent', modeAccents[mode]);
+
+      // Update Labels
+      const labels = { work: 'Focus', shortBreak: 'Short Break', longBreak: 'Long Break' };
+      labelDisplay.textContent = labels[mode];
+
+      // Reset durations
+      totalTime = durations[mode];
+      timeLeft = totalTime;
+      updateDisplay();
+    }
+
+    // Timer Controls
+    function toggleTimer() {
+      if (isRunning) {
+        pauseTimer();
+      } else {
+        startTimer();
+      }
+    }
+
+    function startTimer() {
+      if (isRunning) return;
+      isRunning = true;
+      startBtn.textContent = 'Pause';
+      
+      timerId = setInterval(() => {
+        if (timeLeft > 0) {
+          timeLeft--;
+          updateDisplay();
+        } else {
+          handleTimerComplete();
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      isRunning = false;
+      startBtn.textContent = 'Start';
+      clearInterval(timerId);
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      timeLeft = totalTime;
+      updateDisplay();
+    }
+
+    // Completion Handler
+    function handleTimerComplete() {
+      pauseTimer();
+      playNotificationSound();
+      
+      // Auto-advance logic
+      if (currentMode === 'work') {
+        alert('Work session completed! Time for a break.');
+        switchMode('shortBreak');
+      } else {
+        alert('Break is over! Ready to get back to work?');
+        switchMode('work');
+      }
+    }
+
+    // Custom Durations
+    function updateCustomDurations() {
+      const workVal = parseInt(document.getElementById('work-duration').value) || 25;
+      const shortVal = parseInt(document.getElementById('short-duration').value) || 5;
+      const longVal = parseInt(document.getElementById('long-duration').value) || 15;
+
+      durations.work = Math.max(1, workVal) * 60;
+      durations.shortBreak = Math.max(1, shortVal) * 60;
+      durations.longBreak = Math.max(1, longVal) * 60;
+
+      // Update current time if not running
+      if (!isRunning) {
+        totalTime = durations[currentMode];
+        timeLeft = totalTime;
+        updateDisplay();
+      }
+    }
+
+    // Audio Notification using Web Audio API (no external file needed)
+    function playNotificationSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.8);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.8);
+      } catch (e) {
+        console.log('Audio playback prevented by browser policy.');
+      }
+    }
+
+    // Initial setup
+    updateDisplay();
+  </script>
+</body>
+</html>
